@@ -18,12 +18,48 @@ public:
     {
         timeSinceLastFire += deltaTime;
         recoil.update(deltaTime);
+        if (!isReloading && currentAmmo == 0)
+        {
+            reload();
+        }
+        if (isReloading)
+        {
+            reloadTimer -= deltaTime;
+            if (reloadTimer <= 0.0f)
+            {
+                currentAmmo = ammoCapacity;
+                isReloading = false;
+            }
+        }
     }
 
     // 重新装填子弹
     void reload()
     {
-        currentAmmo = ammoCapacity;
+        if (isReloading || currentAmmo == ammoCapacity)
+        {
+            return;
+        }
+        isReloading = true;
+        reloadTimer = reloadDuration;
+    }
+
+    // 获取当前子弹数
+    int getCurrentAmmo() const
+    {
+        return currentAmmo;
+    }
+
+    // 获取弹匣容量
+    int getAmmoCapacity() const
+    {
+        return ammoCapacity;
+    }
+
+    // 是否处于换弹状态
+    bool getIsReloading() const
+    {
+        return isReloading;
     }
 
     // 是否支持按住自动射击
@@ -39,12 +75,13 @@ protected:
     // 判断是否满足射击条件
     bool canFire() const
     {
-        return timeSinceLastFire >= fireCooldown;
+        return !isReloading && currentAmmo > 0 && timeSinceLastFire >= fireCooldown;
     }
 
     // 记录一次射击
     void commitFire()
     {
+        --currentAmmo;
         timeSinceLastFire = 0.0f;
         recoil.applyRecoil();
         if (fireSound)
@@ -59,4 +96,7 @@ protected:
     float fireCooldown = 0.0f;
     float timeSinceLastFire = 0.0f;
     std::optional<sf::Sound> fireSound;
+    bool isReloading = false;
+    float reloadTimer = 0.0f;
+    float reloadDuration = 2.0f;
 };

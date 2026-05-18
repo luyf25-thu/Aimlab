@@ -3,5 +3,5 @@
     <Platform Name="x64" />
     <Platform Name="x86" />
   </Configurations>
-  <Project Path="Aimlab/Aimlab.vcxproj" />
+  <Project Path="Aimlab/Aimlab.vcxproj" Id="8ccafc15-f4e2-4ea8-9760-c51258f4d8b4" />
 </Solution>

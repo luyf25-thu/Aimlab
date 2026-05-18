@@ -3,6 +3,10 @@
 #include <SFML/Graphics.hpp>
 #include <SFML/Window/Event.hpp>
 #include <optional>
+#include <filesystem>
+#include <windows.h>
+#include <algorithm>
+#include <sstream>
 #include "USP.h"
 #include "Ak47.h"
 #include "M4A1.h"
@@ -23,6 +27,19 @@ public:
         window.setFramerateLimit(144);
         view = window.getDefaultView();
         window.setView(view);
+        // 加载背景贴图（固定在屏幕上）
+        const std::filesystem::path backgroundPath = getRepoRootDir() / "assets" / "background.jpg";
+        if (backgroundTexture.loadFromFile(backgroundPath.u8string()))
+        {
+            backgroundSprite.emplace(backgroundTexture);
+        }
+        const std::filesystem::path fontPath = getRepoRootDir() / "assets" / "font.ttf";
+        if (uiFont.openFromFile(fontPath.u8string()))
+        {
+            ammoText.emplace(uiFont);
+            ammoText->setCharacterSize(20);
+            ammoText->setFillColor(sf::Color::White);
+        }
         activeWeapon = &usp;
         crosshair.setWeapon(activeWeapon);
         window.setMouseCursorVisible(false);
@@ -58,6 +75,11 @@ private:
                 if (key->code == sf::Keyboard::Key::Escape)
                 {
                     window.close();
+                    continue;
+                }
+                if (key->code == sf::Keyboard::Key::R)
+                {
+                    activeWeapon->reload();
                     continue;
                 }
                 handleWeaponSwitch(key->code);
@@ -119,6 +141,7 @@ private:
         }
 
         crosshair.updatePosition(getWindowCenterFloat());
+        updateAmmoText();
     }
 
     // 尝试开火并处理命中判定
@@ -159,11 +182,19 @@ private:
         window.clear(sf::Color(20, 20, 20));
         const sf::View recoilView = getRecoilView();
         window.setView(recoilView);
+        if (backgroundSprite)
+        {
+            window.draw(*backgroundSprite);
+        }
         for (const auto& target : targetPool.getTargets())
         {
             target->render(window);
         }
         window.setView(window.getDefaultView());
+        if (ammoText)
+        {
+            window.draw(*ammoText);
+        }
         crosshair.render(window);
         window.display();
     }
@@ -192,7 +223,8 @@ private:
         {
             const sf::Vector2f offset(static_cast<float>(delta.x) * viewMoveSpeed,
                                       static_cast<float>(delta.y) * viewMoveSpeed);
-            view.move(offset);
+            const sf::Vector2f newCenter = clampViewCenter(view.getCenter() + offset);
+            view.setCenter(newCenter);
             window.setView(view);
         }
         sf::Mouse::setPosition(center, window);
@@ -209,6 +241,73 @@ private:
         return recoilView;
     }
 
+    // 获取可执行文件所在目录
+    static std::filesystem::path getExecutableDir()
+    {
+        wchar_t buffer[MAX_PATH] = {};
+        const DWORD length = GetModuleFileNameW(nullptr, buffer, MAX_PATH);
+        if (length == 0)
+        {
+            return std::filesystem::current_path();
+        }
+        return std::filesystem::path(buffer).parent_path();
+    }
+
+    // 获取仓库根目录（从可执行文件目录向上回退）
+    static std::filesystem::path getRepoRootDir()
+    {
+        return getExecutableDir().parent_path().parent_path().parent_path();
+    }
+
+    // 限制视图中心在背景范围内
+    sf::Vector2f clampViewCenter(const sf::Vector2f& center) const
+    {
+        if (backgroundTexture.getSize().x == 0 || backgroundTexture.getSize().y == 0)
+        {
+            return center;
+        }
+
+        const sf::Vector2f viewSize = view.getSize();
+        const sf::Vector2u bgSize = backgroundTexture.getSize();
+        const float halfWidth = viewSize.x * 0.5f;
+        const float halfHeight = viewSize.y * 0.5f;
+
+        const float minX = halfWidth;
+        const float maxX = std::max(halfWidth, static_cast<float>(bgSize.x) - halfWidth);
+        const float minY = halfHeight;
+        const float maxY = std::max(halfHeight, static_cast<float>(bgSize.y) - halfHeight);
+
+        return {
+            std::clamp(center.x, minX, maxX),
+            std::clamp(center.y, minY, maxY)
+        };
+    }
+
+    // 更新右下角弹药显示
+    void updateAmmoText()
+    {
+        if (!ammoText || !activeWeapon)
+        {
+            return;
+        }
+
+        std::ostringstream text;
+        if (activeWeapon->getIsReloading())
+        {
+            text << "Reloading...";
+        }
+        else
+        {
+            text << activeWeapon->getCurrentAmmo() << " / " << activeWeapon->getAmmoCapacity();
+        }
+        ammoText->setString(text.str());
+
+        const sf::Vector2u size = window.getSize();
+        const sf::FloatRect bounds = ammoText->getLocalBounds();
+        ammoText->setOrigin({ bounds.size.x, bounds.size.y });
+        ammoText->setPosition({ static_cast<float>(size.x) - 20.0f, static_cast<float>(size.y) - 20.0f });
+    }
+
     sf::RenderWindow window;
     Usp usp;
     Ak47 ak47;
@@ -221,4 +320,8 @@ private:
     bool isFiring = false;
     sf::View view;
     float viewMoveSpeed = 0.35f;
+    sf::Texture backgroundTexture;
+    std::optional<sf::Sprite> backgroundSprite;
+    sf::Font uiFont;
+    std::optional<sf::Text> ammoText;
 };
