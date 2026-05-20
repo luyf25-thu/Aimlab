@@ -30,6 +30,14 @@ public:
         return static_cast<float>(hits) / static_cast<float>(totalShots) * 100.0f;
     }
 
+    // 重置统计数据
+    void reset()
+    {
+        hits = 0;
+        misses = 0;
+        totalShots = 0;
+    }
+
     // 获取命中数量
     int getHits() const
     {

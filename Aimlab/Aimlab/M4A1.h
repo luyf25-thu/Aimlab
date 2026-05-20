@@ -12,7 +12,7 @@ public:
         ammoCapacity = 30;
         currentAmmo = ammoCapacity;
         fireCooldown = 0.09f;
-        recoil = RecoilComponent(3.5f, 2.0f, 40.0f);
+        recoil = RecoilComponent(5.5f, 9.5f, 0.7f, 70.0f, 3.0f);
     }
 
     // M4A1 射击逻辑
@@ -31,4 +31,6 @@ public:
     {
         return true;
     }
+
+    // M4A1 使用统一后坐力偏移
 };

@@ -143,8 +143,12 @@
     <ClInclude Include="Ak47.h" />
     <ClInclude Include="Crosshair.h" />
     <ClInclude Include="Game.h" />
+    <ClInclude Include="GameMode.h" />
+    <ClInclude Include="HardMode.h" />
     <ClInclude Include="M4A1.h" />
     <ClInclude Include="MathUtils.h" />
+    <ClInclude Include="RecoilMode.h" />
+    <ClInclude Include="SimpleMode.h" />
     <ClInclude Include="USP.h" />
     <ClInclude Include="RecoilComponent.h" />
     <ClInclude Include="ResourceManager.h" />

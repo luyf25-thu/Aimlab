@@ -71,5 +71,17 @@
     <ClInclude Include="M4A1.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="GameMode.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="SimpleMode.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="HardMode.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="RecoilMode.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

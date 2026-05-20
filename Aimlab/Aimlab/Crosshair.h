@@ -14,8 +14,8 @@ public:
         sf::Image image({ 8, 8 }, sf::Color::Transparent);
         for (unsigned int i = 0; i < 8; ++i)
         {
-            image.setPixel({ i, 4 }, sf::Color::White);
-            image.setPixel({ 4, i }, sf::Color::White);
+            image.setPixel({ i, 4 }, sf::Color::Black);
+            image.setPixel({ 4, i }, sf::Color::Black);
         }
         texture.loadFromImage(image);
         sprite.setTexture(texture, true);

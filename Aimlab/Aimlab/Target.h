@@ -10,13 +10,14 @@ public:
     virtual ~Target() = default;
 
     // 初始化或重置靶子状态
-    virtual void init(const sf::Vector2f& startPos, float r, float lifeTime) = 0;
+    virtual void init(const sf::Vector2f& startPos, float r, float lifeTime,
+                      int requiredHits, const sf::Color& baseColor) = 0;
 
     // 更新靶子逻辑
     virtual void update(float deltaTime) = 0;
 
     // 被命中时的处理
-    virtual void onHit() = 0;
+    virtual bool onHit() = 0;
 
     // 绘制靶子
     void render(sf::RenderWindow& window)
@@ -50,6 +51,12 @@ public:
         isActive = false;
     }
 
+    // 获取靶子位置
+    sf::Vector2f getPosition() const
+    {
+        return position;
+    }
+
 protected:
     sf::CircleShape shape;
     sf::Vector2f position;
@@ -59,4 +66,7 @@ protected:
     bool isHitState = false;
     float hitTimer = 0.0f;
     float hitDisplayDuration = 0.12f;
+    int requiredHits = 1;
+    int currentHits = 0;
+    sf::Color baseColor = sf::Color::Red;
 };

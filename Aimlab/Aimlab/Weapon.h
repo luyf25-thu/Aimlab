@@ -14,11 +14,11 @@ public:
     virtual bool fire() = 0;
 
     // 更新 CD 与后坐力
-    virtual void update(float deltaTime)
+    virtual void update(float deltaTime, bool isFiring)
     {
         timeSinceLastFire += deltaTime;
-        recoil.update(deltaTime);
-        if (!isReloading && currentAmmo == 0)
+        recoil.update(deltaTime, isFiring);
+        if (!infiniteAmmo && !isReloading && currentAmmo == 0)
         {
             reload();
         }
@@ -62,10 +62,30 @@ public:
         return isReloading;
     }
 
+    // 设置是否无限子弹
+    void setInfiniteAmmo(bool enabled)
+    {
+        infiniteAmmo = enabled;
+    }
+
+    // 获取无限子弹状态
+    bool getInfiniteAmmo() const
+    {
+        return infiniteAmmo;
+    }
+
     // 是否支持按住自动射击
     virtual bool isAutomatic() const = 0;
 
+
+
     // 获取后坐力偏移
+    virtual sf::Vector2f getCrosshairOffset() const
+    {
+        return { 0.0f, 0.0f };
+    }
+
+    // 获取弹道偏移
     sf::Vector2f getRecoilOffset() const
     {
         return recoil.getOffset();
@@ -75,13 +95,17 @@ protected:
     // 判断是否满足射击条件
     bool canFire() const
     {
-        return !isReloading && currentAmmo > 0 && timeSinceLastFire >= fireCooldown;
+        const bool hasAmmo = infiniteAmmo || currentAmmo > 0;
+        return !isReloading && hasAmmo && timeSinceLastFire >= fireCooldown;
     }
 
     // 记录一次射击
     void commitFire()
     {
-        --currentAmmo;
+        if (!infiniteAmmo)
+        {
+            --currentAmmo;
+        }
         timeSinceLastFire = 0.0f;
         recoil.applyRecoil();
         if (fireSound)
@@ -99,4 +123,5 @@ protected:
     bool isReloading = false;
     float reloadTimer = 0.0f;
     float reloadDuration = 2.0f;
+    bool infiniteAmmo = false;
 };

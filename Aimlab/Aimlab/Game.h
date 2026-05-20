@@ -7,10 +7,14 @@
 #include <windows.h>
 #include <algorithm>
 #include <sstream>
+#include <iomanip>
 #include "USP.h"
 #include "Ak47.h"
 #include "M4A1.h"
 #include "TargetSpawner.h"
+#include "SimpleMode.h"
+#include "HardMode.h"
+#include "RecoilMode.h"
 #include "Crosshair.h"
 #include "ScoreManager.h"
 
@@ -22,7 +26,7 @@ public:
     Game()
         : window(sf::VideoMode({ 800, 600 }), "Aimlab OOP Demo"),
           targetPool(60),
-          spawner(&targetPool, 0.9f)
+          spawner(&targetPool, &simpleMode, 0.0f)
     {
         window.setFramerateLimit(144);
         view = window.getDefaultView();
@@ -32,15 +36,26 @@ public:
         if (backgroundTexture.loadFromFile(backgroundPath.u8string()))
         {
             backgroundSprite.emplace(backgroundTexture);
+            const sf::Vector2u bgSize = backgroundTexture.getSize();
+            if (bgSize.x > 0 && bgSize.y > 0)
+            {
+                view.setCenter({ static_cast<float>(bgSize.x) * 0.5f, static_cast<float>(bgSize.y) * 0.5f });
+                window.setView(view);
+            }
         }
         const std::filesystem::path fontPath = getRepoRootDir() / "assets" / "font.ttf";
         if (uiFont.openFromFile(fontPath.u8string()))
         {
             ammoText.emplace(uiFont);
             ammoText->setCharacterSize(20);
-            ammoText->setFillColor(sf::Color::White);
+            ammoText->setFillColor(sf::Color::Black);
+            statsText.emplace(uiFont);
+            statsText->setCharacterSize(20);
+            statsText->setFillColor(sf::Color::Black);
         }
         activeWeapon = &usp;
+        currentMode = &simpleMode;
+        activeWeapon->setInfiniteAmmo(infiniteAmmoEnabled);
         crosshair.setWeapon(activeWeapon);
         window.setMouseCursorVisible(false);
         const sf::Vector2i center = getWindowCenter();
@@ -75,6 +90,17 @@ private:
                 if (key->code == sf::Keyboard::Key::Escape)
                 {
                     window.close();
+                    continue;
+                }
+                if (key->code == sf::Keyboard::Key::M)
+                {
+                    toggleMode();
+                    continue;
+                }
+                if (key->code == sf::Keyboard::Key::X)
+                {
+                    infiniteAmmoEnabled = !infiniteAmmoEnabled;
+                    activeWeapon->setInfiniteAmmo(infiniteAmmoEnabled);
                     continue;
                 }
                 if (key->code == sf::Keyboard::Key::R)
@@ -121,14 +147,16 @@ private:
         {
             activeWeapon = &m4a1;
         }
+        activeWeapon->setInfiniteAmmo(infiniteAmmoEnabled);
         crosshair.setWeapon(activeWeapon);
     }
 
     // 更新游戏逻辑
     void update(float deltaTime)
     {
-        activeWeapon->update(deltaTime);
-        spawner.update(deltaTime, window.getSize());
+        elapsedTime += deltaTime;
+        activeWeapon->update(deltaTime, isFiring);
+        spawner.update(deltaTime, getSpawnAreaSize());
 
         for (const auto& target : targetPool.getTargets())
         {
@@ -142,6 +170,18 @@ private:
 
         crosshair.updatePosition(getWindowCenterFloat());
         updateAmmoText();
+        updateStatsText();
+    }
+
+    // 获取生成区域尺寸（优先使用背景尺寸）
+    sf::Vector2u getSpawnAreaSize() const
+    {
+        const sf::Vector2u bgSize = backgroundTexture.getSize();
+        if (bgSize.x > 0 && bgSize.y > 0)
+        {
+            return bgSize;
+        }
+        return window.getSize();
     }
 
     // 尝试开火并处理命中判定
@@ -160,7 +200,11 @@ private:
         {
             if (target->getIsActive() && target->isHit(shotPosition))
             {
-                target->onHit();
+                const bool destroyed = target->onHit();
+                if (destroyed && currentMode)
+                {
+                    currentMode->onTargetHit(target->getPosition());
+                }
                 hit = true;
                 break;
             }
@@ -169,6 +213,11 @@ private:
         if (hit)
         {
             scoreManager.recordHit();
+            const int hits = scoreManager.getHits();
+            if (hits > 0)
+            {
+                avgSecondsPerHit = elapsedTime / static_cast<float>(hits);
+            }
         }
         else
         {
@@ -194,6 +243,10 @@ private:
         if (ammoText)
         {
             window.draw(*ammoText);
+        }
+        if (statsText)
+        {
+            window.draw(*statsText);
         }
         crosshair.render(window);
         window.display();
@@ -292,7 +345,11 @@ private:
         }
 
         std::ostringstream text;
-        if (activeWeapon->getIsReloading())
+        if (activeWeapon->getInfiniteAmmo())
+        {
+            text << "infinite";
+        }
+        else if (activeWeapon->getIsReloading())
         {
             text << "Reloading...";
         }
@@ -308,6 +365,57 @@ private:
         ammoText->setPosition({ static_cast<float>(size.x) - 20.0f, static_cast<float>(size.y) - 20.0f });
     }
 
+    // 更新右上角统计显示
+    void updateStatsText()
+    {
+        if (!statsText)
+        {
+            return;
+        }
+
+        const int hits = scoreManager.getHits();
+        const float accuracy = scoreManager.getAccuracy();
+        const float avgSeconds = avgSecondsPerHit;
+
+        std::ostringstream text;
+        text << std::fixed << std::setprecision(1) << accuracy << "%" << "\n";
+        text << std::fixed << std::setprecision(2) << avgSeconds << "s/Hit";
+        statsText->setString(text.str());
+
+        const sf::Vector2u size = window.getSize();
+        const sf::FloatRect bounds = statsText->getLocalBounds();
+        statsText->setOrigin({ bounds.size.x, 0.0f });
+        statsText->setPosition({ static_cast<float>(size.x) - 20.0f, 20.0f });
+    }
+
+    // 切换简单/困难模式
+    void toggleMode()
+    {
+        modeIndex = (modeIndex + 1) % 3;
+        if (modeIndex == 0)
+        {
+            currentMode = &simpleMode;
+        }
+        else if (modeIndex == 1)
+        {
+            currentMode = &hardMode;
+        }
+        else
+        {
+            currentMode = &recoilMode;
+        }
+        spawner.setMode(currentMode);
+        if (currentMode)
+        {
+            currentMode->reset();
+        }
+        targetPool.deactivateAll();
+        scoreManager.reset();
+        elapsedTime = 0.0f;
+        avgSecondsPerHit = 0.0f;
+        updateStatsText();
+    }
+
     sf::RenderWindow window;
     Usp usp;
     Ak47 ak47;
@@ -318,10 +426,19 @@ private:
     Crosshair crosshair;
     ScoreManager scoreManager;
     bool isFiring = false;
+    bool infiniteAmmoEnabled = true;
+    float elapsedTime = 0.0f;
+    float avgSecondsPerHit = 0.0f;
+    int modeIndex = 0;
     sf::View view;
     float viewMoveSpeed = 0.35f;
     sf::Texture backgroundTexture;
     std::optional<sf::Sprite> backgroundSprite;
     sf::Font uiFont;
     std::optional<sf::Text> ammoText;
+    std::optional<sf::Text> statsText;
+    SimpleMode simpleMode;
+    HardMode hardMode;
+    RecoilMode recoilMode;
+    GameMode* currentMode = nullptr;
 };

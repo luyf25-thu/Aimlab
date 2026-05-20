@@ -12,7 +12,7 @@ public:
         ammoCapacity = 12;
         currentAmmo = ammoCapacity;
         fireCooldown = 0.25f;
-        recoil = RecoilComponent(6.0f, 2.5f, 35.0f);
+        recoil = RecoilComponent(6.0f, 2.5f, 0.5f); // 保持后坐力逻辑不变
     }
 
     // USP 射击逻辑
@@ -31,4 +31,6 @@ public:
     {
         return false;
     }
+
+    // USP 使用统一后坐力偏移
 };

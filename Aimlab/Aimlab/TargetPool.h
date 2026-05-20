@@ -40,6 +40,15 @@ public:
         }
     }
 
+    // 清空所有靶子
+    void deactivateAll()
+    {
+        for (const auto& target : pool)
+        {
+            target->deactivate();
+        }
+    }
+
     // 获取靶子池用于遍历
     const std::vector<std::unique_ptr<Target>>& getTargets() const
     {
