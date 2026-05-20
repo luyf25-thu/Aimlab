@@ -13,7 +13,7 @@ public:
         currentAmmo = ammoCapacity;
         fireCooldown = 0.1f;
         recoil = RecoilComponent(6.5f, 3.5f, 35.0f);
-        recoil = RecoilComponent(10.5f, 16.0f, 1.0f, 90.0f, 4.0f);
+        recoil = RecoilComponent(10.5f, 16.0f, 1.0f, 135.0f, 4.0f);
     }
 
     // AK47 射击逻辑
